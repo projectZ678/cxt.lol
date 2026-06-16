@@ -135,6 +135,27 @@
   .widget-btn{background:var(--fg);color:#000;border:1px solid var(--border);border-radius:6px;padding:0.15rem 0.5rem;cursor:pointer;font-size:0.7rem;transition:background 0.2s;font-family:inherit;}
   .widget-btn:hover{background:rgba(0,0,0,0.08);}
   .staff-badge{display:inline-block;font-size:0.55rem;font-weight:700;letter-spacing:0.08em;padding:0.15rem 0.45rem;border-radius:6px;background:var(--fg);color:var(--bg);vertical-align:middle;margin-left:0.5rem;}
+
+  /* FORCE ALL TEXT WHITE */
+  body, .section-title, .section-sub, .field-label, .save-msg, .stat-lbl, .badge, .nav-slug, .nav-slug span, .side-label, .side-btn, .auth-logo, .auth-tab, .auth-msg, .claim-modal-title, .claim-modal-sub, .claim-pfx, .claim-modal-msg, .preview-link, .upload-status, .remove-link, .widget-name, .staff-badge, #toast, .field-input, .claim-inp, .stat-num, .nav-logout, .auth-form input, .auth-form input::placeholder, .field-input::placeholder, .claim-inp::placeholder {
+    color: #ffffff !important;
+  }
+  /* override for active tab, etc. */
+  .auth-tab.active { color: #ffffff !important; }
+  .side-btn.active { color: #ffffff !important; }
+  .nav-slug span { color: #ffffff !important; }
+  .preview-link:hover { color: #ffffff !important; }
+  .nav-logout:hover { color: #ffffff !important; }
+  .status-opt { color: #ffffff !important; }
+  .status-opt.active { color: #ffffff !important; }
+  .save-msg { color: #ffffff !important; }
+  .upload-status.ok { color: #6bff8a !important; } /* keep ok green */
+  .upload-status.err { color: #ff6b6b !important; } /* keep err red */
+  .remove-link { color: #ff6b6b !important; } /* keep remove red */
+  .auth-msg.err { color: #ff6b6b !important; }
+  .claim-modal-msg.err { color: #ff6b6b !important; }
+  #toast.err { color: #ff6b6b !important; }
+  #toast.ok { color: #6bff8a !important; }
 </style>
 </head>
 <body>
