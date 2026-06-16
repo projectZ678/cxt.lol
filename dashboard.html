@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>cxt — dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  :root{--bg:#000;--fg:#fff;--muted:rgba(255,255,255,0.35);--border:rgba(255,255,255,0.08);--panel:rgba(255,255,255,0.04);}
+  body{background:var(--bg);color:var(--fg);font-family:'Inter',system-ui,sans-serif;min-height:100vh;}
+
+  @media(hover:hover){body{cursor:none;}#cursor{position:fixed;width:18px;height:18px;border:1.5px solid rgba(255,255,255,0.5);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);mix-blend-mode:difference;}#cursor-dot{position:fixed;width:3px;height:3px;background:#fff;border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);}}#cursor,#cursor-dot{display:none;}@media(hover:hover){#cursor,#cursor-dot{display:block;}}
+  @media(max-width:768px){body{cursor:auto !important;}}
+
+  /* AUTH SCREENS */
+  #auth-screen{position:fixed;inset:0;z-index:200;background:#000;display:flex;align-items:center;justify-content:center;}
+  .auth-box{width:100%;max-width:380px;padding:0 1.5rem;}
+  .auth-logo{font-size:1.4rem;font-weight:800;letter-spacing:-0.03em;margin-bottom:2.5rem;}
+  .auth-tabs{display:flex;gap:0;margin-bottom:1.8rem;border-bottom:1px solid var(--border);}
+  .auth-tab{background:none;border:none;color:var(--muted);font-family:inherit;font-size:0.85rem;font-weight:500;padding:0.6rem 0;margin-right:1.5rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.2s;}
+  .auth-tab.active{color:var(--fg);border-bottom-color:var(--fg);}
+  .auth-form{display:flex;flex-direction:column;gap:0.75rem;}
+  .auth-form input{background:var(--panel);border:1px solid var(--border);border-radius:10px;color:var(--fg);font-family:inherit;font-size:0.88rem;padding:0.8rem 1rem;outline:none;transition:border-color 0.2s;}
+  .auth-form input:focus{border-color:rgba(255,255,255,0.25);}
+  .auth-form input::placeholder{color:rgba(255,255,255,0.2);}
+  .auth-submit{background:var(--fg);color:var(--bg);border:none;border-radius:10px;font-family:inherit;font-size:0.88rem;font-weight:700;padding:0.85rem;cursor:pointer;transition:opacity 0.2s;margin-top:0.25rem;}
+  .auth-submit:hover{opacity:0.88;}
+  .auth-submit:disabled{opacity:0.3;cursor:not-allowed;}
+  .auth-msg{font-size:0.75rem;color:var(--muted);text-align:center;margin-top:0.5rem;min-height:1em;}
+  .auth-msg.err{color:#ff6b6b;}
+  .auth-msg.ok{color:rgba(255,255,255,0.7);}
+
+  /* Claim modal */
+  #claim-modal{display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);align-items:center;justify-content:center;}
+  #claim-modal.open{display:flex;}
+  .claim-box-modal{background:#0a0a0a;border:1px solid var(--border);border-radius:20px;padding:2rem;width:100%;max-width:380px;}
+  .claim-modal-title{font-size:1.1rem;font-weight:700;margin-bottom:0.4rem;}
+  .claim-modal-sub{font-size:0.78rem;color:var(--muted);margin-bottom:1.5rem;}
+  .claim-row{display:flex;align-items:center;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--panel);}
+  .claim-pfx{padding:0 0.3rem 0 0.9rem;color:var(--muted);font-size:0.85rem;white-space:nowrap;}
+  .claim-inp{flex:1;background:transparent;border:none;outline:none;color:var(--fg);font-size:0.85rem;font-family:inherit;padding:0.75rem 0.4rem;}
+  .claim-inp::placeholder{color:rgba(255,255,255,0.18);}
+  .claim-modal-btn{background:var(--fg);color:var(--bg);border:none;border-radius:10px;font-family:inherit;font-size:0.85rem;font-weight:700;padding:0.75rem;cursor:pointer;margin-top:0.9rem;width:100%;transition:opacity 0.2s;}
+  .claim-modal-btn:hover{opacity:0.88;}
+  .claim-modal-btn:disabled{opacity:0.3;cursor:not-allowed;}
+  .claim-modal-msg{font-size:0.75rem;color:var(--muted);margin-top:0.5rem;min-height:1em;}
+  .claim-modal-msg.err{color:#ff6b6b;}
+
+  /* TOAST */
+  #toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(100px);z-index:999;padding:0.7rem 1.4rem;border-radius:10px;font-size:0.8rem;font-weight:500;opacity:0;transition:all 0.4s ease;pointer-events:none;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);backdrop-filter:blur(16px);color:#fff;}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  #toast.err{background:rgba(255,80,80,0.15);border-color:rgba(255,80,80,0.2);color:#ff6b6b;}
+  #toast.ok{background:rgba(80,255,130,0.08);border-color:rgba(80,255,130,0.15);color:#6bff8a;}
+
+  /* MAIN LAYOUT */
+  #main-app{display:none;}
+  #main-app.show{display:block;}
+  nav{position:sticky;top:0;z-index:50;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(0,0,0,0.8);backdrop-filter:blur(20px);}
+  .nav-logo{font-size:1rem;font-weight:800;letter-spacing:-0.02em;}
+  .nav-right{display:flex;align-items:center;gap:1rem;}
+  .nav-slug{font-size:0.75rem;color:var(--muted);}
+  .nav-slug span{color:var(--fg);}
+  .nav-logout{background:none;border:1px solid var(--border);color:var(--muted);font-family:inherit;font-size:0.75rem;padding:0.35rem 0.8rem;border-radius:7px;cursor:pointer;transition:all 0.2s;}
+  .nav-logout:hover{border-color:rgba(255,255,255,0.2);color:var(--fg);}
+
+  .layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 57px);}
+  @media(max-width:700px){.layout{grid-template-columns:1fr;}}
+
+  aside{border-right:1px solid var(--border);padding:1.5rem 1rem;}
+  .side-section{margin-bottom:0.25rem;}
+  .side-label{font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.25);padding:0 0.6rem;margin-bottom:0.4rem;margin-top:1rem;}
+  .side-btn{display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.6rem;border-radius:8px;font-size:0.82rem;color:var(--muted);cursor:pointer;transition:all 0.15s;border:none;background:none;width:100%;font-family:inherit;text-align:left;}
+  .side-btn:hover,.side-btn.active{background:var(--panel);color:var(--fg);}
+  .side-btn svg{opacity:0.5;flex-shrink:0;}
+  .side-btn.active svg{opacity:1;}
+
+  main{padding:2rem 2.5rem;}
+  @media(max-width:700px){main{padding:1.2rem 1rem;}}
+
+  .section{display:none;}
+  .section.active{display:block;}
+  .section-title{font-size:1.1rem;font-weight:700;margin-bottom:0.3rem;}
+  .section-sub{font-size:0.78rem;color:var(--muted);margin-bottom:1.8rem;}
+
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:1.4rem;}
+  .panel+.panel{margin-top:1rem;}
+  .field-label{font-size:0.72rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem;}
+  .field-input{width:100%;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:9px;color:var(--fg);font-family:inherit;font-size:0.85rem;padding:0.7rem 0.9rem;outline:none;transition:border-color 0.2s;}
+  .field-input:focus{border-color:rgba(255,255,255,0.2);}
+  .field-input::placeholder{color:rgba(255,255,255,0.15);}
+  textarea.field-input{resize:vertical;min-height:80px;line-height:1.5;}
+  .field-row{margin-bottom:1rem;}
+  .save-btn{background:var(--fg);color:var(--bg);border:none;border-radius:9px;font-family:inherit;font-size:0.82rem;font-weight:700;padding:0.65rem 1.4rem;cursor:pointer;transition:opacity 0.2s;}
+  .save-btn:hover{opacity:0.88;}
+  .save-btn:disabled{opacity:0.3;cursor:not-allowed;}
+  .save-msg{font-size:0.75rem;color:var(--muted);margin-left:0.8rem;}
+
+  .preview-link{display:inline-flex;align-items:center;gap:0.5rem;color:var(--muted);font-size:0.78rem;text-decoration:none;border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.8rem;transition:all 0.2s;margin-bottom:1.5rem;}
+  .preview-link:hover{border-color:rgba(255,255,255,0.2);color:var(--fg);}
+
+  .social-row{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;}
+  @media(max-width:500px){.social-row{grid-template-columns:1fr;}}
+
+  .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+  .stat-cell{padding:1.2rem;background:var(--panel);}
+  .stat-num{font-size:1.6rem;font-weight:800;letter-spacing:-0.03em;}
+  .stat-lbl{font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-top:0.2rem;}
+
+  .badge{display:inline-block;padding:0.2rem 0.6rem;border-radius:99px;font-size:0.65rem;font-weight:600;background:rgba(255,255,255,0.06);border:1px solid var(--border);}
+
+  .color-row{display:flex;gap:0.6rem;flex-wrap:wrap;margin-top:0.5rem;}
+  .color-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:border-color 0.15s;flex-shrink:0;}
+  .color-swatch.selected{border-color:var(--fg);}
+  input[type=color]{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);background:transparent;cursor:pointer;padding:0;}
+
+  .discord-status-row{display:flex;gap:0.6rem;margin-top:0.6rem;flex-wrap:wrap;}
+  .status-opt{display:flex;align-items:center;gap:0.4rem;padding:0.35rem 0.7rem;border:1px solid var(--border);border-radius:8px;font-size:0.75rem;cursor:pointer;transition:all 0.2s;}
+  .status-opt.active{border-color:rgba(255,255,255,0.3);background:var(--panel);}
+  .status-dot-sm{width:8px;height:8px;border-radius:50%;}
+
+  .loading-spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,0.1);border-top-color:var(--fg);border-radius:50%;animation:spin 0.6s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div id="cursor"></div>
+<div id="cursor-dot"></div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">cxt</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">Login</button>
+      <button class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Sign up</button>
+    </div>
+    <div class="auth-form" id="auth-form">
+      <input type="text" id="auth-username" placeholder="username" autocomplete="off" maxlength="30">
+      <input type="password" id="auth-pass" placeholder="password (min 6 chars)" autocomplete="current-password">
+      <button class="auth-submit" id="auth-submit">Continue →</button>
+      <div class="auth-msg" id="auth-msg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CLAIM MODAL -->
+<div id="claim-modal">
+  <div class="claim-box-modal">
+    <div class="claim-modal-title">Claim your username</div>
+    <div class="claim-modal-sub">Pick a unique slug for your profile page.</div>
+    <div class="claim-row">
+      <span class="claim-pfx">cxt.lol/</span>
+      <input class="claim-inp" id="modal-username" type="text" placeholder="yourname" autocomplete="off" spellcheck="false" maxlength="30">
+    </div>
+    <input class="field-input" id="modal-password" type="password" placeholder="password (min 6 chars)" style="margin-top:0.75rem;">
+    <button class="claim-modal-btn" id="claim-modal-btn">Claim username →</button>
+    <div class="claim-modal-msg" id="claim-modal-msg"></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="main-app">
+  <nav>
+    <div class="nav-logo">cxt</div>
+    <div class="nav-right">
+      <span class="nav-slug">cxt.lol/<span id="nav-slug-val">—</span></span>
+      <button class="nav-logout" onclick="logout()">logout</button>
+    </div>
+  </nav>
+  <div class="layout">
+    <aside>
+      <div class="side-label">overview</div>
+      <button class="side-btn active" onclick="nav('overview',this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Overview
+      </button>
+      <div class="side-label">profile</div>
+      <button class="side-btn" onclick="nav('profile',this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        Profile
+      </button>
+      <button class="side-btn" onclick="nav('socials',this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        Socials
+      </button>
+      <button class="side-btn" onclick="nav('music',this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        Music
+      </button>
+      <button class="side-btn" onclick="nav('appearance',this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+        Appearance
+      </button>
+      <div class="side-label">account</div>
+      <button class="side-btn" onclick="nav('settings',this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+    </aside>
+
+    <main>
+      <!-- OVERVIEW -->
+      <div class="section active" id="sec-overview">
+        <div class="section-title">Overview</div>
+        <div class="section-sub">Your profile at a glance.</div>
+        <a class="preview-link" id="preview-link" href="#" target="_blank">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          view your page
+        </a>
+        <div class="stats-grid">
+          <div class="stat-cell"><div class="stat-num" id="ov-views">—</div><div class="stat-lbl">profile views</div></div>
+          <div class="stat-cell"><div class="stat-num" id="ov-links">0</div><div class="stat-lbl">social links</div></div>
+          <div class="stat-cell"><div class="stat-num" id="ov-music">—</div><div class="stat-lbl">track</div></div>
+        </div>
+        <div class="panel" style="margin-top:1rem;">
+          <div class="field-label">Your slug</div>
+          <div style="font-size:0.9rem;color:var(--muted);">cxt.lol/<span id="ov-slug" style="color:var(--fg);font-weight:600;"></span></div>
+          <div style="margin-top:0.8rem;"><span class="badge">active</span></div>
+        </div>
+      </div>
+
+      <!-- PROFILE -->
+      <div class="section" id="sec-profile">
+        <div class="section-title">Profile</div>
+        <div class="section-sub">Customize what visitors see on your page.</div>
+        <div class="panel">
+          <div class="field-row">
+            <div class="field-label">Display name</div>
+            <input class="field-input" id="p-displayname" type="text" placeholder="Your name" maxlength="50">
+          </div>
+          <div class="field-row">
+            <div class="field-label">Bio</div>
+            <textarea class="field-input" id="p-bio" placeholder="say something about yourself..." maxlength="500"></textarea>
+          </div>
+          <div class="field-row">
+            <div class="field-label">Avatar URL</div>
+            <input class="field-input" id="p-avatar" type="url" placeholder="https://...">
+          </div>
+          <div class="field-row">
+            <div class="field-label">Banner URL</div>
+            <input class="field-input" id="p-banner" type="url" placeholder="https://... (optional)">
+          </div>
+          <button class="save-btn" onclick="saveProfile()">Save profile</button>
+          <span class="save-msg" id="profile-msg"></span>
+        </div>
+      </div>
+
+      <!-- SOCIALS -->
+      <div class="section" id="sec-socials">
+        <div class="section-title">Socials</div>
+        <div class="section-sub">Links that appear on your profile.</div>
+        <div class="panel">
+          <div class="social-row">
+            <div class="field-row">
+              <div class="field-label">Discord</div>
+              <input class="field-input" id="s-discord" type="text" placeholder="username">
+            </div>
+            <div class="field-row">
+              <div class="field-label">Discord status</div>
+              <div class="discord-status-row">
+                <div class="status-opt active" data-status="offline" onclick="setStatus('offline',this)"><div class="status-dot-sm" style="background:#747f8d"></div>offline</div>
+                <div class="status-opt" data-status="online" onclick="setStatus('online',this)"><div class="status-dot-sm" style="background:#3ba55c"></div>online</div>
+                <div class="status-opt" data-status="dnd" onclick="setStatus('dnd',this)"><div class="status-dot-sm" style="background:#ed4245"></div>dnd</div>
+                <div class="status-opt" data-status="idle" onclick="setStatus('idle',this)"><div class="status-dot-sm" style="background:#faa81a"></div>idle</div>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field-label">Twitter / X</div>
+              <input class="field-input" id="s-twitter" type="text" placeholder="@handle">
+            </div>
+            <div class="field-row">
+              <div class="field-label">Instagram</div>
+              <input class="field-input" id="s-instagram" type="text" placeholder="@handle">
+            </div>
+            <div class="field-row">
+              <div class="field-label">YouTube</div>
+              <input class="field-input" id="s-youtube" type="text" placeholder="channel URL">
+            </div>
+            <div class="field-row">
+              <div class="field-label">GitHub</div>
+              <input class="field-input" id="s-github" type="text" placeholder="username">
+            </div>
+            <div class="field-row">
+              <div class="field-label">Twitch</div>
+              <input class="field-input" id="s-twitch" type="text" placeholder="username">
+            </div>
+            <div class="field-row">
+              <div class="field-label">TikTok</div>
+              <input class="field-input" id="s-tiktok" type="text" placeholder="@handle">
+            </div>
+          </div>
+          <button class="save-btn" onclick="saveSocials()">Save socials</button>
+          <span class="save-msg" id="socials-msg"></span>
+        </div>
+      </div>
+
+      <!-- MUSIC -->
+      <div class="section" id="sec-music">
+        <div class="section-title">Music</div>
+        <div class="section-sub">Your track plays on your profile page.</div>
+        <div class="panel">
+          <div class="field-row">
+            <div class="field-label">Audio URL (mp3 / ogg)</div>
+            <input class="field-input" id="m-url" type="url" placeholder="https://cdn.example.com/track.mp3">
+          </div>
+          <div class="field-row">
+            <div class="field-label">Track name</div>
+            <input class="field-input" id="m-name" type="text" placeholder="Song name">
+          </div>
+          <div class="field-row">
+            <div class="field-label">Artist</div>
+            <input class="field-input" id="m-artist" type="text" placeholder="Artist name">
+          </div>
+          <button class="save-btn" onclick="saveMusic()">Save music</button>
+          <span class="save-msg" id="music-msg"></span>
+        </div>
+      </div>
+
+      <!-- APPEARANCE -->
+      <div class="section" id="sec-appearance">
+        <div class="section-title">Appearance</div>
+        <div class="section-sub">Tweak the look of your page.</div>
+        <div class="panel">
+          <div class="field-row">
+            <div class="field-label">Rain effect</div>
+            <label style="display:flex;align-items:center;gap:0.6rem;font-size:0.82rem;cursor:pointer;">
+              <input type="checkbox" id="a-rain" checked style="accent-color:#fff;width:14px;height:14px;">
+              Show rain animation
+            </label>
+          </div>
+          <div class="field-row">
+            <div class="field-label">Accent color</div>
+            <div class="color-row">
+              <div class="color-swatch selected" style="background:#ffffff" data-color="#ffffff" onclick="selectColor(this)"></div>
+              <div class="color-swatch" style="background:#a855f7" data-color="#a855f7" onclick="selectColor(this)"></div>
+              <div class="color-swatch" style="background:#3b82f6" data-color="#3b82f6" onclick="selectColor(this)"></div>
+              <div class="color-swatch" style="background:#10b981" data-color="#10b981" onclick="selectColor(this)"></div>
+              <div class="color-swatch" style="background:#f59e0b" data-color="#f59e0b" onclick="selectColor(this)"></div>
+              <div class="color-swatch" style="background:#ef4444" data-color="#ef4444" onclick="selectColor(this)"></div>
+              <input type="color" id="a-custom-color" value="#ffffff" title="Custom color" oninput="customColor(this)">
+            </div>
+          </div>
+          <button class="save-btn" onclick="saveAppearance()">Save appearance</button>
+          <span class="save-msg" id="appear-msg"></span>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="section" id="sec-settings">
+        <div class="section-title">Settings</div>
+        <div class="section-sub">Account and danger zone.</div>
+        <div class="panel">
+          <div class="field-label">Current email</div>
+          <div style="font-size:0.85rem;color:var(--muted);margin-bottom:1.2rem;" id="set-email">—</div>
+          <div class="field-label">Current username</div>
+          <div style="font-size:0.85rem;color:var(--fg);font-weight:600;margin-bottom:1.2rem;">cxt.lol/<span id="set-slug"></span></div>
+          <button class="save-btn" style="background:rgba(255,80,80,0.12);color:#ff6b6b;border:1px solid rgba(255,80,80,0.2);" onclick="if(confirm('Delete your account? This cannot be undone.'))deleteAccount()">Delete account</button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+// Cursor - only for mouse devices
+(function(){
+const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+if(!isTouch){
+  const cursor=document.getElementById('cursor'),cdot=document.getElementById('cursor-dot');
+  cursor.style.display='block';cdot.style.display='block';
+  let mx=-200,my=-200,cx2=-200,cy2=-200;
+  document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cdot.style.left=mx+'px';cdot.style.top=my+'px';});
+  (function tick(){cx2+=(mx-cx2)*0.13;cy2+=(my-cy2)*0.13;cursor.style.left=cx2+'px';cursor.style.top=cy2+'px';requestAnimationFrame(tick);})();
+}
+})();
+
+const SUPA_URL='https://rpgtoebzburfzgjoavoj.supabase.co';
+const SUPA_KEY='sb_publishable__gbq2uFnqfe2aNaqP71smA_4e94Q5a6';
+let USER=null, PROFILE=null, discordStatus='offline', accentColor='#ffffff';
+
+// Detect non-HTTPS (crypto.subtle requires secure context)
+const needsHttps=location.protocol!=='https:'&&location.hostname!=='localhost'&&location.hostname!=='127.0.0.1'&&location.protocol!=='file:';
+if(needsHttps)console.warn('Not a secure context — crypto.subtle may be unavailable. Use HTTPS or localhost.');
+if(location.protocol==='file:'){
+  alert('Network error: Cannot fetch from file:// protocol. Please deploy to GitHub Pages or run a local server (node server.js).');
+}
+
+// Simple UUID v4 generator (works in all contexts)
+function genId(){return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&0x3|0x8)).toString(16);});}
+
+// SHA-256 hash via Web Crypto API (falls back for non-secure contexts)
+async function hashPass(pw){
+  if(typeof crypto!=='undefined'&&crypto.subtle){
+    try{
+      const b=new TextEncoder().encode(pw);
+      const h=await crypto.subtle.digest('SHA-256',b);
+      return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    }catch(e){}
+  }
+  // Fallback hash for non-secure contexts (local HTTP, etc.)
+  let h=0;for(let i=0;i<pw.length;i++){const c=pw.charCodeAt(i);h=((h<<5)-h)+c;h|=0;}
+  return 'h_'+Math.abs(h).toString(16)+'_'+pw.length;
+}
+
+async function supaFetch(path,opts={}){
+  const r=await fetch(SUPA_URL+path,{...opts,headers:{
+    'apikey':SUPA_KEY,
+    'Authorization':'Bearer '+SUPA_KEY,
+    'Content-Type':'application/json',
+    'Prefer':'return=representation',
+    ...(opts.headers||{})
+  }});
+  const txt=await r.text();
+  try{return{ok:r.ok,status:r.status,data:JSON.parse(txt)};}catch{return{ok:r.ok,status:r.status,data:txt};}
+}
+
+function toast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='show '+(type||'');
+  clearTimeout(t._hide);t._hide=setTimeout(()=>{t.classList.remove('show');},2500);
+}
+
+// ── Auth tab switch ───────────────────────
+let authMode='login';
+function switchTab(m){
+  authMode=m;
+  document.getElementById('tab-login').classList.toggle('active',m==='login');
+  document.getElementById('tab-signup').classList.toggle('active',m==='signup');
+  document.getElementById('auth-submit').textContent=m==='login'?'Login →':'Create account →';
+  document.getElementById('auth-msg').textContent='';
+}
+
+document.getElementById('auth-submit').addEventListener('click', async()=>{
+  const pass=document.getElementById('auth-pass').value;
+  const uname=document.getElementById('auth-username').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
+  const msg=document.getElementById('auth-msg');
+  const btn=document.getElementById('auth-submit');
+  if(!pass){msg.className='auth-msg err';msg.textContent='Enter a password.';return;}
+  if(pass.length<6){msg.className='auth-msg err';msg.textContent='Password must be at least 6 characters.';return;}
+  msg.className='auth-msg';msg.textContent='Please wait...';btn.disabled=true;
+
+  try{
+    if(authMode==='signup'){
+      if(!uname){msg.className='auth-msg err';msg.textContent='Enter a username.';btn.disabled=false;return;}
+      if(uname.length<3){msg.className='auth-msg err';msg.textContent='Username must be at least 3 characters.';btn.disabled=false;return;}
+      const chk=await supaFetch(`/rest/v1/profiles?username=eq.${encodeURIComponent(uname)}&select=username`);
+      if(chk.data?.length){msg.className='auth-msg err';msg.textContent='Username taken.';btn.disabled=false;return;}
+      const pwHash=await hashPass(pass);
+      const ins=await supaFetch('/rest/v1/profiles',{method:'POST',body:JSON.stringify({username:uname,password_hash:pwHash,display_name:uname,bio:'',avatar_url:'',banner_url:'',audio_url:'',audio_name:'',audio_artist:'',discord:'',twitter:'',instagram:'',youtube:'',github:'',twitch:'',tiktok:'',discord_status:'offline',rain:true,accent:'#ffffff',views:0})});
+      if(!ins.ok){
+        const det=ins.data?.message||ins.data?.details||JSON.stringify(ins.data);
+        msg.className='auth-msg err';msg.textContent='Error: '+(det||'Could not create profile. Run SQL in Supabase editor first.');btn.disabled=false;return;
+      }
+      PROFILE=ins.data?.[0]||{};
+      if(!PROFILE.id){msg.className='auth-msg err';msg.textContent='Profile created but no ID returned. Check profiles table schema.';btn.disabled=false;return;}
+      USER={id:PROFILE.id};
+      localStorage.setItem('cxt_session',USER.id);
+      btn.disabled=false;
+      showApp();
+    } else {
+      if(!uname){msg.className='auth-msg err';msg.textContent='Enter your username.';btn.disabled=false;return;}
+      const lookup=await supaFetch(`/rest/v1/profiles?username=eq.${encodeURIComponent(uname)}&select=id,password_hash`);
+      if(!lookup.data?.length){msg.className='auth-msg err';msg.textContent='User not found.';btn.disabled=false;return;}
+      const row=lookup.data[0];
+      const pwHash=await hashPass(pass);
+      if(pwHash!==row.password_hash){msg.className='auth-msg err';msg.textContent='Wrong password.';btn.disabled=false;return;}
+      USER={id:row.id};
+      localStorage.setItem('cxt_session',USER.id);
+      const r=await supaFetch(`/rest/v1/profiles?id=eq.${USER.id}&select=*`);
+      if(r.data?.length){PROFILE=r.data[0];}else{msg.className='auth-msg err';msg.textContent='Profile not found.';btn.disabled=false;return;}
+      btn.disabled=false;
+      showApp();
+    }
+    }catch(e){msg.className='auth-msg err';msg.textContent=e.message||'An error occurred. Check console.';btn.disabled=false;console.error(e);}
+});
+
+document.getElementById('auth-pass').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('auth-submit').click();});
+document.getElementById('modal-password').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('claim-modal-btn').click();});
+
+
+
+// Claim modal
+document.getElementById('claim-modal-btn').addEventListener('click', async()=>{
+  const uname=document.getElementById('modal-username').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
+  const msg=document.getElementById('claim-modal-msg');
+  const btn=document.getElementById('claim-modal-btn');
+  if(!uname||uname.length<3){msg.className='claim-modal-msg err';msg.textContent='Minimum 3 characters.';return;}
+  msg.className='claim-modal-msg';msg.textContent='Checking...';btn.disabled=true;
+  const chk=await supaFetch(`/rest/v1/profiles?username=eq.${encodeURIComponent(uname)}&select=username`);
+  if(chk.data?.length){msg.className='claim-modal-msg err';msg.textContent='Username taken, try another.';btn.disabled=false;return;}
+  const pw=document.getElementById('modal-password').value;
+  if(!pw||pw.length<6){msg.className='claim-modal-msg err';msg.textContent='Password must be at least 6 characters.';btn.disabled=false;return;}
+  const pwHash=await hashPass(pw);
+  const uid=USER?.id||genId();
+  const ins=await supaFetch('/rest/v1/profiles',{method:'POST',body:JSON.stringify({id:uid,username:uname,password_hash:pwHash,display_name:uname,bio:'',avatar_url:'',banner_url:'',audio_url:'',audio_name:'',audio_artist:'',discord:'',twitter:'',instagram:'',youtube:'',github:'',twitch:'',tiktok:'',discord_status:'offline',rain:true,accent:'#ffffff',views:0})});
+  if(!ins.ok){msg.className='claim-modal-msg err';msg.textContent='Error claiming. Try again.';btn.disabled=false;return;}
+  PROFILE=ins.data?.[0]||{id:uid,username:uname};
+  USER={id:PROFILE.id};
+  localStorage.setItem('cxt_session',USER.id);
+  document.getElementById('claim-modal').classList.remove('open');
+  btn.disabled=false;
+  showApp();
+});
+
+function showApp(){
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('main-app').classList.add('show');
+  populateFields();
+}
+
+function populateFields(){
+  const p=PROFILE;
+  if(!p){return;}
+  document.getElementById('nav-slug-val').textContent=p.username||'—';
+  document.getElementById('ov-slug').textContent=p.username||'—';
+  document.getElementById('set-slug').textContent=p.username||'—';
+  document.getElementById('set-email').textContent='set during signup';
+  document.getElementById('preview-link').href=`profile.html?u=${p.username}`;
+  document.getElementById('ov-music').textContent=p.audio_name?'✓':'—';
+  let scount=0;['discord','twitter','instagram','youtube','github','twitch','tiktok'].forEach(k=>{if(p[k])scount++;});
+  document.getElementById('ov-links').textContent=scount;
+  document.getElementById('ov-views').textContent=p.views??0;
+  document.getElementById('p-displayname').value=p.display_name||'';
+  document.getElementById('p-bio').value=p.bio||'';
+  document.getElementById('p-avatar').value=p.avatar_url||'';
+  document.getElementById('p-banner').value=p.banner_url||'';
+  ['discord','twitter','instagram','youtube','github','twitch','tiktok'].forEach(k=>{
+    const el=document.getElementById('s-'+k);if(el)el.value=p[k]||'';
+  });
+  discordStatus=p.discord_status||'offline';
+  document.querySelectorAll('.status-opt').forEach(el=>{el.classList.toggle('active',el.dataset.status===discordStatus);});
+  document.getElementById('m-url').value=p.audio_url||'';
+  document.getElementById('m-name').value=p.audio_name||'';
+  document.getElementById('m-artist').value=p.audio_artist||'';
+  document.getElementById('a-rain').checked=p.rain!==false;
+  accentColor=p.accent||'#ffffff';
+  document.querySelectorAll('.color-swatch').forEach(s=>s.classList.toggle('selected',s.dataset.color===accentColor));
+}
+
+function nav(id,btn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.side-btn').forEach(b=>b.classList.remove('active'));
+  const sec=document.getElementById('sec-'+id);
+  if(sec)sec.classList.add('active');
+  if(btn)btn.classList.add('active');
+}
+
+function setStatus(s,el){
+  discordStatus=s;
+  document.querySelectorAll('.status-opt').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function selectColor(el){
+  document.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+  accentColor=el.dataset.color;
+  document.getElementById('a-custom-color').value=accentColor;
+}
+function customColor(el){
+  document.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('selected'));
+  accentColor=el.value;
+}
+
+function uid(){return USER?.id;}
+async function saveProfile(){
+  const id=uid();if(!id)return;
+  const r=await supaFetch(`/rest/v1/profiles?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({
+    display_name:document.getElementById('p-displayname').value,
+    bio:document.getElementById('p-bio').value,
+    avatar_url:document.getElementById('p-avatar').value,
+    banner_url:document.getElementById('p-banner').value
+  })});
+  flashMsg('profile-msg',r.ok?'Saved!':'Error saving.');
+  if(r.ok&&r.data?.[0]){PROFILE={...PROFILE,...r.data[0]};populateFields();}
+  if(r.ok)toast('Profile saved','ok');else toast('Error saving profile','err');
+}
+async function saveSocials(){
+  const id=uid();if(!id)return;
+  const r=await supaFetch(`/rest/v1/profiles?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({
+    discord:document.getElementById('s-discord').value,
+    twitter:document.getElementById('s-twitter').value,
+    instagram:document.getElementById('s-instagram').value,
+    youtube:document.getElementById('s-youtube').value,
+    github:document.getElementById('s-github').value,
+    twitch:document.getElementById('s-twitch').value,
+    tiktok:document.getElementById('s-tiktok').value,
+    discord_status:discordStatus
+  })});
+  flashMsg('socials-msg',r.ok?'Saved!':'Error saving.');
+  if(r.ok)toast('Socials saved','ok');else toast('Error saving socials','err');
+}
+async function saveMusic(){
+  const id=uid();if(!id)return;
+  const r=await supaFetch(`/rest/v1/profiles?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({
+    audio_url:document.getElementById('m-url').value,
+    audio_name:document.getElementById('m-name').value,
+    audio_artist:document.getElementById('m-artist').value
+  })});
+  flashMsg('music-msg',r.ok?'Saved!':'Error saving.');
+  if(r.ok)toast('Music saved','ok');else toast('Error saving music','err');
+}
+async function saveAppearance(){
+  const id=uid();if(!id)return;
+  const r=await supaFetch(`/rest/v1/profiles?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({
+    rain:document.getElementById('a-rain').checked,
+    accent:accentColor
+  })});
+  flashMsg('appear-msg',r.ok?'Saved!':'Error saving.');
+  if(r.ok)toast('Appearance saved','ok');else toast('Error saving appearance','err');
+}
+async function deleteAccount(){
+  const id=uid();if(!id)return;
+  await supaFetch(`/rest/v1/profiles?id=eq.${id}`,{method:'DELETE'});
+  logout();
+}
+function flashMsg(id,txt){
+  const el=document.getElementById(id);if(!el)return;
+  el.textContent=txt;
+  clearTimeout(el._f);el._f=setTimeout(()=>el.textContent='',2500);
+}
+function logout(){
+  localStorage.removeItem('cxt_session');location.href='index.html';
+}
+
+// Auto-login from saved session — stored as raw UUID
+(async function init(){
+  const saved=localStorage.getItem('cxt_session');
+  const p=new URLSearchParams(location.search);
+  if(saved&&saved!=='undefined'&&saved!=='null'&&saved.length>10){
+    USER={id:saved};
+    const r=await supaFetch(`/rest/v1/profiles?id=eq.${saved}&select=*`);
+    if(r.data?.length){PROFILE=r.data[0];showApp();return;}
+    localStorage.removeItem('cxt_session');USER=null;
+    document.getElementById('auth-screen').style.display='none';
+    document.getElementById('claim-modal').classList.add('open');
+    if(p.get('claim'))document.getElementById('modal-username').value=p.get('claim');
+    return;
+  }
+  if(p.get('claim')){document.getElementById('auth-username').value=p.get('claim');document.getElementById('modal-username').value=p.get('claim');}
+})();
+</script>
+</body>
+</html>
