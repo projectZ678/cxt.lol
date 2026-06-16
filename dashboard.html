@@ -371,7 +371,7 @@ document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cdot.style.l
 (function tick(){cx2+=(mx-cx2)*0.13;cy2+=(my-cy2)*0.13;cursor.style.left=cx2+'px';cursor.style.top=cy2+'px';requestAnimationFrame(tick);})();
 
 const SUPA_URL='https://rpgtoebzburfzgjoavoj.supabase.co';
-const SUPA_KEY='sb_publishable__gbq2uFnqfe2aNaqP71smA_4e94Q5a6';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwZ3RvZWJ6YnVyZnpnam9hdm9qIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTQwNjg0MSwiZXhwIjoyMDk2OTgyODQxfQ.yLYwZanJUpsLpHHd91V0P0XcIalNjL89AnpLU5zOcsY';
 let USER=null, PROFILE=null, discordStatus='offline', accentColor='#ffffff';
 
 async function supaFetch(path,opts={}){
